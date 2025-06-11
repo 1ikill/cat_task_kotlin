@@ -2,44 +2,48 @@ package com.example.network.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.network.data.repositorty.CatRepository
-import com.example.network.data.serviceLocator.NetworkModule
-import com.example.network.ui.state.CatUiState
+import com.example.network.data.model.CatImageModel
+import com.example.network.domain.usecase.GetCatImagesUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class CatViewModel(
-    private val repository: CatRepository = CatRepository(NetworkModule.catApiService)
+@HiltViewModel
+class CatViewModel @Inject constructor(
+    private val getCatImagesUseCase: GetCatImagesUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CatUiState())
-    val uiState: StateFlow<CatUiState> = _uiState.asStateFlow()
+    private val _cats = MutableStateFlow<List<CatImageModel>>(emptyList())
+    val cats: StateFlow<List<CatImageModel>> = _cats
+
+
+
+    private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
+    val uiState: StateFlow<UiState> = _uiState
 
     init {
-        loadRandomCats()
+        fetchCats()
     }
 
-    fun loadRandomCats() {
+    private fun fetchCats(limit: Int = 10) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-
-            repository.getRandomCats().fold(
-                onSuccess = { cats ->
-                    _uiState.value = _uiState.value.copy(
-                        cats = cats,
-                        isLoading = false,
-                        errorMessage = null
-                    )
-                },
-                onFailure = { exception ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = exception.message ?: "Unknown error occurred"
-                    )
-                }
-            )
+            _uiState.value = UiState.Loading
+            try {
+                val images = getCatImagesUseCase(limit)
+                _uiState.value = UiState.Success(images)
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error(e.message ?: "Unknown error")
+            }
         }
     }
+
 }
+
+sealed class UiState {
+    object Loading : UiState()
+    data class Success(val cats: List<CatImageModel>) : UiState()
+    data class Error(val message: String) : UiState()
+}
+
