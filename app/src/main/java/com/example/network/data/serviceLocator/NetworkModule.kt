@@ -1,5 +1,6 @@
 package com.example.network.data.serviceLocator
 
+import com.example.catapi.BuildConfig
 import com.example.network.data.network.CatApiService
 import dagger.Module
 import dagger.Provides
@@ -21,8 +22,9 @@ object NetworkModule {
 
     class ApiKeyInterceptor : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
+            val apiKey = BuildConfig.CAT_API_KEY
             val request = chain.request().newBuilder()
-                .addHeader("x-api-key", "")
+                .addHeader("x-api-key", apiKey)
                 .build()
             return chain.proceed(request)
         }
